@@ -1,0 +1,136 @@
+#include <math.h>
+#include "tree_construct.h"
+
+
+
+double to_num(lexem* lx)
+{
+    return atof(content(lx));
+}
+
+lexem* from_num(double num)
+{
+    char buf[100] = {};
+    sprintf(buf, "%f", num);
+    return new_lexem(NUM, buf);
+}
+
+bool is_num(lexem* lx)
+{
+    return type(lx) == NUM;
+}
+
+double make_operation(double left, int type, double right)
+{
+    if(type == OP_ADD) return left + right;
+    if(type == OP_SUB) return left - right;
+    if(type == OP_DIV) return left / right;
+    if(type == OP_MUL) return left * right;
+}
+
+
+lexem* const_collapse(lexem* lx)
+{
+    if(is_final(lx))
+    {
+        return lx;
+    }
+    lexem* left = const_collapse(lx -> left);
+    lexem* right = const_collapse(lx -> right);
+    if(is_bin_op(lx))
+    {
+        if(is_num(left) && is_num(right))
+        {
+            lexem* res = from_num( make_operation( to_num(left), type(lx), to_num(right) ) );
+            del_lexem(left);
+            del_lexem(right);
+            return res;
+        }
+    }
+    connect_left(lx, left);
+    connect_right(lx, right);
+    return lx;
+}
+
+lexem* dif(lexem* lx)
+{
+    lexem* res = lx;
+
+    if(is_num(lx))
+    {
+        res = new_lexem(NUM, "0");
+    }
+
+    if(type(lx) == id)
+    {
+        res = new_lexem(NUM, "1");
+    }
+
+    if(type(lx) == OP_ADD)
+    {
+        connect_left(res, dif(res -> left));
+        connect_right(res, def(res -> right));
+    }
+
+    if(type(lx) == OP_SUB)
+    {
+        connect_left(res, dif(res -> left));
+        connect_right(res, def(res -> right));
+    }
+
+    if(type(lx) == OP_POW)
+    {
+        res = new_lexem(OP_MUL, "*");
+        connect_left(res, lx -> right);
+        connect_right(res, lx);
+        lexem* sb = new_lexem(OP_SUB, "-");
+        connect_left(sb, lx -> left);
+        connect_right(sb, from_num(1));
+        connect_right(lx, sb);
+    }
+
+    if(type(lx) == OP_MUL)
+    {
+        res = new_lexem(OP_ADD, "+");
+
+        lexem* mul1 = new_lexem(OP_MUL, "*");
+        connect_left(mul1, lx -> left);
+        connect_right(mul1, dif(lx -> right);
+
+        lexem* mul2 = new_lexem(OP_MUL, "*");
+        connect_left(mul2, lx -> right);
+        connect_right(mul2, dif(lx -> left);
+
+        connect_left(res, mul1);
+        connect_right(res, mul2);
+    }
+    
+    
+    if(type(lx) == OP_DIV)
+    {
+        sb = new_lexem(OP_SUB, "-");
+
+        lexem* mul1 = new_lexem(OP_MUL, "*");
+        connect_left(mul1, lx -> left);
+        connect_right(mul1, dif(lx -> right);
+
+        lexem* mul2 = new_lexem(OP_MUL, "*");
+        connect_left(mul2, lx -> right);
+        connect_right(mul2, dif(lx -> left);
+
+        connect_left(sb, mul1);
+        connect_right(sb, mul2);
+        
+        lexem* sqr = new_lexem(OP_POW, "^");
+        connect_left(sqr, lx -> right);
+        connect_right(sqr, from_num(2));
+        
+        res = new_lexem(OP_DI
+    }
+
+
+
+
+
+
+

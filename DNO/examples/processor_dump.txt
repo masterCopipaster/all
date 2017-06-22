@@ -1,0 +1,15 @@
+processor state: OK
+program memory beginning: 3883408
+program memory current index: 3883558
+
+ now stack dump 
+ 
+Stack state: OK
+stack length: 0, stack max length: 10000
+element size: 8
+
+ now return stack dump 
+ 
+Stack state: OK
+stack length: 0, stack max length: 10000
+element size: 8

@@ -1,0 +1,374 @@
+#include "tree_construct.h"
+
+#define MAX_VAR_NUM  10000
+void exp_asm(FILE* file, lexem* lx);
+void to_asm(FILE* file, lexem* lx);
+void ass_asm(FILE* file, lexem* lx);
+void if_asm(FILE* file, lexem* lx);
+void whl_asm(FILE* file, lexem* lx);
+void call_asm(FILE* file, lexem* lx);
+void arg_call_asm(FILE* file, lexem* lx, int* argn);
+void fdef_asm(FILE* file, lexem* lx);
+void arg_def_asm(FILE* file, lexem* lx, int* argn);
+
+struct variable
+{
+    int reg = 0;
+    const char* name = 0;
+};
+
+struct function
+{
+    int arg_num = 0;
+    int label = 0;
+    const char* name = 0;
+};
+
+variable var_table[MAX_VAR_NUM] = {};
+function func_table[MAX_VAR_NUM] = {};
+
+int _curlbl = 0;
+
+int get_reg(lexem* lx)
+{
+    bool found = false;
+    int i = 0;
+    while(!found && var_table[i].name)
+    {
+        found = !strcmp(var_table[i].name, content(lx));
+        i++;
+    }
+    if(found)
+    {
+        return var_table[i - 1].reg;
+    }
+    else
+    {
+        var_table[i].name = content(lx);
+        var_table[i].reg = i;
+        return i;
+    }
+}
+
+int give_label()
+{
+    _curlbl++;
+    return _curlbl;
+}
+
+int get_func_lbl(lexem* lx)
+{
+    //printf("searching for %s\n", content(lx));
+    bool found = false;
+    int i = 0;
+    while(!found && func_table[i].name)
+    {
+        found = !strcmp(func_table[i].name, content(lx));
+        i++;
+    }
+    if(found)
+    {
+        //printf("found on %d\n", func_table[i - 1].label);
+        return func_table[i - 1].label;
+    }
+    else
+    {
+        //printf("not found\n");
+        func_table[i].name = content(lx);
+        func_table[i].label = give_label();
+        return func_table[i].label;
+    }
+}
+
+bool check_arg_num(lexem* lx, int num)
+{
+    //printf("checking args %s %d\n", content(lx), num);
+    bool found = false;
+    int i = 0;
+    while(!found && func_table[i].name)
+    {
+        found = !strcmp(func_table[i].name, content(lx));
+        i++;
+    }
+    if(found)
+    {
+        //printf("found with %d\n", func_table[i - 1].arg_num);
+        return func_table[i - 1].arg_num == num;
+    }
+    else
+    {
+        //printf("not found\nsetting argument num %d\n", num);
+        func_table[i].name = content(lx);
+        func_table[i].label = give_label();
+        func_table[i].arg_num = num;
+        return 1;
+    }
+}
+
+
+
+
+
+void to_asm(FILE* file, lexem* lx)
+{
+    //printf("toasm %s\n", content(lx));
+    if(type(lx) == OP_SEP)
+    {
+        to_asm(file, lx -> left);
+        to_asm(file, lx -> right);
+    }
+    if(type(lx) == OP_ASS)
+    {
+        ass_asm(file, lx);
+    }
+    if(type(lx) == OP_IF)
+    {
+        if_asm(file, lx);
+    }
+    if(type(lx) == OP_WHL)
+    {
+        whl_asm(file, lx);
+    }
+    if(type(lx) == OP_ASM)
+    {
+        exp_asm(file, lx);
+    }
+
+    if(type(lx) == ID)
+    {
+        call_asm(file, lx);
+    }
+
+    if(type(lx) == OP_OUT)
+    {
+        fprintf(file, "//OUT\n");
+        exp_asm(file, lx -> left);
+        fprintf(file, "out\n");
+    }
+
+    if(type(lx) == OP_RET)
+    {
+        fprintf(file, "//RET\n");
+        exp_asm(file, lx -> left);
+        fprintf(file, "ret\n");
+    }
+    if(type(lx) == FUNC_DEF)
+    {
+        fdef_asm(file, lx -> left);
+    }
+
+}
+
+void fdef_asm(FILE* file, lexem* lx)
+{
+    int lbl = give_label();
+    fprintf(file, "//FUNC_DEF\njmp %d\n:%d\n", lbl, get_func_lbl(lx));
+    int argn = 0;
+    arg_def_asm(file, lx -> left, &argn);
+    if(!check_arg_num(lx, argn))
+    {
+        system("color 0c");
+        fprintf(stderr, "error: WRONG ARGUMENT NUMBER\n");
+    }
+    to_asm(file, lx -> right);
+    fprintf(file, ":%d\n", lbl);
+    fprintf(file, "//-FUNC_DEF\n");
+}
+
+void arg_def_asm(FILE* file, lexem* lx, int* argn)
+{
+    if(type(lx) == ARG_SEP)
+    {
+        arg_def_asm(file, lx -> left, argn);
+        arg_def_asm(file, lx -> right, argn);
+    }
+    if(type(lx) == ID)
+    {
+        (*argn)++;
+        fprintf(file, "popr %d\n", get_reg(lx));
+    }
+}
+
+
+
+void call_asm(FILE* file, lexem* lx)
+{
+    fprintf(file, "//CALL\n");
+    int argn = 0;
+    arg_call_asm(file, lx -> right, &argn);
+    if(!check_arg_num(lx, argn))
+    {
+        system("color 0c");
+        fprintf(stderr, "error: WRONG ARGUMENT NUMBER on %s\n", content(lx));
+    }
+    fprintf(file, "call %d\n", get_func_lbl(lx));
+    fprintf(file, "//-CALL\n");
+}
+
+void arg_call_asm(FILE* file, lexem* lx, int* argn)
+{
+    if(type(lx) == ARG_SEP)
+    {
+        arg_call_asm(file, lx -> right, argn);
+        arg_call_asm(file, lx -> left, argn);
+    }
+    if(type(lx) && type(lx) != ARG_SEP)
+    {
+        (*argn)++;
+        exp_asm(file, lx);
+    }
+}
+
+
+void ass_asm(FILE* file, lexem* lx)
+{
+    fprintf(file, "//assignment\n");
+    //(stdout, "//assignment\n");
+    exp_asm(file, lx -> right);
+    fprintf(file, "popr %d\n", get_reg(lx -> left));
+}
+
+void asm_asm(FILE* file, lexem* lx)
+{
+    fprintf(file, "%s ", content(lx));
+    if(!is_final(lx))
+    {
+        asm_asm(file, lx -> left);
+    }
+}
+
+void exp_asm(FILE* file, lexem* lx)
+{
+    if(is_final(lx))
+    {
+        if(type(lx) == NUM)
+        {
+            fprintf(file, "push %s\n", content(lx));
+        }
+        else if(type(lx) == ID)
+        {
+            fprintf(file, "pushr %d\n", get_reg(lx));
+        }
+    }
+    else
+    {
+        if(type(lx) == ID)
+        {
+            call_asm(file, lx);
+            return;
+        }
+        if(type(lx) != OP_ASM )
+        {
+            exp_asm(file, lx -> left);
+            exp_asm(file, lx -> right);
+        }
+        else
+        {
+            fprintf(file, "//ASM\n");
+            asm_asm(file, lx -> left);
+            fputc('\n', file);
+        }
+        if(type(lx) == OP_ADD) fprintf(file, "add\n");
+        if(type(lx) == OP_SUB) fprintf(file, "sub\n");
+        if(type(lx) == OP_MUL) fprintf(file, "mul\n");
+        if(type(lx) == OP_POW) fprintf(file, "pow\n");
+        if(type(lx) == OP_DIV) fprintf(file, "div\n");
+        if(type(lx) == OP_SIN) fprintf(file, "sin\n");
+        if(type(lx) == OP_COS) fprintf(file, "cos\n");
+        if(type(lx) == OP_ABS) fprintf(file, "abs\n");
+        if(type(lx) == OP_M)
+        {
+            int lbl1 = give_label();
+            int lbl2 = give_label();
+            fprintf(file, "jle %d\npush 1\njmp %d\n:%d\npush 0\n:%d\n", lbl1, lbl2, lbl1, lbl2);
+        }
+        if(type(lx) == OP_L)
+        {
+            int lbl1 = give_label();
+            int lbl2 = give_label();
+            fprintf(file, "jl %d\npush 0\njmp %d\n:%d\npush 1\n:%d\n", lbl1, lbl2, lbl1, lbl2);
+        }
+        if(type(lx) == OP_ME)
+        {
+            int lbl1 = give_label();
+            int lbl2 = give_label();
+            fprintf(file, "jl %d\npush 1\njmp %d\n:%d\npush 0\n:%d\n", lbl1, lbl2, lbl1, lbl2);
+        }
+        if(type(lx) == OP_LE)
+        {
+            int lbl1 = give_label();
+            int lbl2 = give_label();
+            fprintf(file, "jle %d\npush 0\njmp %d\n:%d\npush 1\n:%d\n", lbl1, lbl2, lbl1, lbl2);
+        }
+        if(type(lx) == OP_EQ)
+        {
+            int lbl1 = give_label();
+            int lbl2 = give_label();
+            fprintf(file, "je %d\npush 0\njmp %d\n:%d\npush 1\n:%d\n", lbl1, lbl2, lbl1, lbl2);
+        }
+        if(type(lx) == OP_NE)
+        {
+            int lbl1 = give_label();
+            int lbl2 = give_label();
+            fprintf(file, "je %d\npush 1\njmp %d\n:%d\npush 0\n:%d\n", lbl1, lbl2, lbl1, lbl2);
+        }
+        if(type(lx) == OP_SQRT) fprintf(file, "sqrt\n");
+        if(type(lx) == OP_IN) fprintf(file, "pop\nin\n");
+        if(type(lx) == OP_OUT) fprintf(file, "out\npush 0\n");
+    }
+}
+
+void if_asm(FILE* file, lexem* lx)
+{
+    fprintf(file, "//if\n");
+    exp_asm(file, lx -> left);
+    int lbl = give_label();
+    fprintf(file, "push 0\n");
+    fprintf(file, "je %d\n", lbl);
+    to_asm(file, lx -> right);
+    fprintf(file, ":%d\n", lbl);
+}
+
+void whl_asm(FILE* file, lexem* lx)
+{
+    fprintf(file, "//while\n");
+    int retlbl = give_label();
+    fprintf(file, ":%d\n", retlbl);
+    exp_asm(file, lx -> left);
+    int lbl = give_label();
+    fprintf(file, "push 0\n");
+    fprintf(file, "je %d\n", lbl);
+    to_asm(file, lx -> right);
+    fprintf(file, "jmp %d\n:%d\n",retlbl, lbl);
+}
+
+void ast_to_asm(char* filename, lexem* lx)
+{
+    FILE* file = fopen(filename, "w");
+    to_asm(file, lx);
+    fprintf(file, "end\nendprog");
+    fclose(file);
+}
+void print_var_table()
+{
+    for(int i = 0; i<MAX_VAR_NUM; i++)
+    {
+         if(var_table[i].name)
+         {
+            printf("%s %d\n", var_table[i].name, var_table[i].reg);
+         }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+

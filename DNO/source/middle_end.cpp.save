@@ -1,0 +1,29 @@
+#include "tree_convert.h"
+
+int main(int argc, char* argv[])
+{
+    if(argc > 1)
+    {
+        
+        //loading
+        lexem* ast = load(argv[1]);
+        ast = const_collapse(ast);
+
+        //create filename
+        char resname[1000] = {};
+        strcpy(resname, argv[1]);
+        char* point = strrchr(resname, '.');
+        if(!point)
+        {
+            point = resname + strlen(resname);
+        }
+        //saving dot and ast
+        sprintf(point, "_final.dot");
+        dot_dump(resname, ast);
+        ///////////////////
+        ast_save(resname, ast);
+        //print_var_table();
+    }
+    return 0;
+}
+

@@ -1,0 +1,13 @@
+a = in(0);
+out(228);
+out(factorial(a));
+//recurse
+func factorial(n)
+{
+	if(n > 0)	
+	{	
+		res = n * factorial(n-1);
+		return res;
+	};
+	return 1;
+};

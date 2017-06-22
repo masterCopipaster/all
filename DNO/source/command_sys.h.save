@@ -1,0 +1,39 @@
+/*! \file command_sys.h
+    \brief Processor command system.
+
+    Details.
+*/
+#ifndef CMD_SYS
+#define CMD_SYS
+#define VERSION 1
+
+/**
+commands and codes
+*/
+
+#define end 65
+#define push 66
+#define pushr 68
+#define pop 69
+#define popr 70
+#define fadd 71
+#define fsub 72
+#define fmul 73
+#define fdiv 74
+#define fsin 75
+#define fcos 76
+#define fsqrt 77
+#define in 78
+#define out 79
+#define mov 80
+#define _abs 81
+#define jmp 82
+#define je 83
+#define jle 84
+#define jl 85
+#define jne 86
+#define call 87
+#define ret 88
+#define pow 89
+
+#endif
