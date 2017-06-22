@@ -1,0 +1,5 @@
+\documentclass[12pt]{article}
+\userpackage[russian]{babel}
+\begin{document}
+HELLO LATEX!
+\end{document}
